@@ -1,0 +1,6 @@
+{
+  "name": "OvoPet",
+  "description": "Jogo de bichinho virtual estilo Pou onde você cuida do seu ovinho, alimenta com várias comidas, personaliza com acessórios e joga minigames.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

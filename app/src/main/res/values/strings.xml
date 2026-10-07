@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">OvoPet</string>
+    <string name="tab_home">Casa</string>
+    <string name="tab_kitchen">Cozinha</string>
+    <string name="tab_wardrobe">Armário</string>
+    <string name="tab_minigames">30 Jogos</string>
+    <string name="stat_hunger">Fome</string>
+    <string name="stat_energy">Energia</string>
+    <string name="stat_cleanliness">Higiene</string>
+    <string name="stat_happiness">Diversão</string>
+    <string name="stat_health">Saúde</string>
+    <string name="action_pet">Carinho</string>
+    <string name="action_bath">Banho</string>
+    <string name="action_sleep">Dormir</string>
+    <string name="action_wake">Acordar</string>
+    <string name="action_heal">Remédio</string>
+    <string name="kitchen_title">Cozinha &amp; Inventário</string>
+    <string name="wardrobe_title">Armário de Acessórios</string>
+    <string name="minigames_title">Central de 30 Mini-Games</string>
+    <string name="btn_buy">Comprar</string>
+    <string name="btn_equip">Equipar</string>
+    <string name="btn_unequip">Tirar</string>
+    <string name="btn_feed">Alimentar</string>
+    <string name="btn_play">Jogar</string>
+</resources>
