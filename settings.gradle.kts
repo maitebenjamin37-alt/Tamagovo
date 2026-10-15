@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "OvoPet"
+rootProject.name = "Tamagovo"
 
 include(":app")

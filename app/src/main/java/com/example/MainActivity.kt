@@ -114,7 +114,8 @@ fun OvoPetApp(
                     onDismissEvolutionModal = { viewModel.dismissEvolutionDialog() },
                     onQuickFeed = { viewModel.buyAndFeedFoodDirectly(it) },
                     onRenamePet = { viewModel.renamePet(it) },
-                    onNavigateTab = { viewModel.selectTab(it) }
+                    onNavigateTab = { viewModel.selectTab(it) },
+                    onSimulateTimeAlone = { viewModel.simulateTimeAlone() }
                 )
                 MainTab.KITCHEN -> KitchenFoodScreen(
                     uiState = uiState,

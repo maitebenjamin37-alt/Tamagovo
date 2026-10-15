@@ -54,7 +54,7 @@ interface OvoPetDao {
         UnlockedAccessoryEntity::class,
         MiniGameScoreEntity::class
     ],
-    version = 2,
+    version = 4,
     exportSchema = false
 )
 abstract class OvoPetDatabase : RoomDatabase() {
@@ -88,8 +88,9 @@ class OvoPetRepository(private val dao: OvoPetDao) {
 
     suspend fun ensureInitialized() {
         val current = dao.getPetStateOnce()
+        val now = System.currentTimeMillis()
         if (current == null) {
-            dao.savePetState(PetStateEntity())
+            dao.savePetState(PetStateEntity(coins = 0, mood = 80, lastInteractionTimestamp = now))
             dao.unlockAccessory(UnlockedAccessoryEntity("hat_cap"))
             dao.unlockAccessory(UnlockedAccessoryEntity("color_classic"))
             dao.saveFoodItem(FoodInventoryEntity("food_apple", 4))
@@ -97,6 +98,14 @@ class OvoPetRepository(private val dao: OvoPetDao) {
             dao.saveFoodItem(FoodInventoryEntity("food_icecream", 2))
             dao.saveFoodItem(FoodInventoryEntity("food_salad", 2))
             dao.saveFoodItem(FoodInventoryEntity("food_banana", 3))
+        } else {
+            // Decay mood if left alone for a while
+            val minutesPassed = ((now - current.lastInteractionTimestamp) / 60000L).toInt().coerceAtLeast(0)
+            if (minutesPassed >= 1) {
+                val moodDrop = (minutesPassed / 2).coerceAtMost(55)
+                val newMood = (current.mood - moodDrop).coerceIn(5, 100)
+                dao.savePetState(current.copy(mood = newMood, lastUpdated = now))
+            }
         }
     }
 
@@ -157,15 +166,19 @@ class OvoPetRepository(private val dao: OvoPetDao) {
         energyDelta: Int = 0,
         xpGain: Int = 15,
         carePointsGain: Int = 3,
-        coinReward: Int = 5
+        coinReward: Int = 5,
+        moodDelta: Int = 12
     ): EvolutionStage? {
         val current = dao.getPetStateOnce() ?: PetStateEntity()
+        val now = System.currentTimeMillis()
         val baseUpdated = current.copy(
             happiness = (current.happiness + happinessDelta).coerceIn(0, 100),
             cleanliness = cleanlinessTarget ?: current.cleanliness,
             health = (current.health + healthDelta).coerceIn(0, 100),
             energy = (current.energy + energyDelta).coerceIn(0, 100),
-            coins = current.coins + coinReward
+            coins = current.coins + coinReward,
+            mood = (current.mood + moodDelta).coerceIn(0, 100),
+            lastInteractionTimestamp = now
         )
         val (finalState, evolvedStage) = applyXpAndEvolution(baseUpdated, xpGain, carePointsGain)
         dao.savePetState(finalState)
@@ -195,12 +208,15 @@ class OvoPetRepository(private val dao: OvoPetDao) {
 
         val pet = dao.getPetStateOnce() ?: PetStateEntity()
         val now = System.currentTimeMillis()
+        val moodBonus = (food.happinessRestore / 2 + 10).coerceIn(10, 25)
 
         val fedPet = pet.copy(
             hunger = (pet.hunger + food.hungerRestore).coerceIn(0, 100),
             energy = (pet.energy + food.energyRestore).coerceIn(0, 100),
             happiness = (pet.happiness + food.happinessRestore).coerceIn(0, 100),
             health = (pet.health + food.healthRestore).coerceIn(0, 100),
+            mood = (pet.mood + moodBonus).coerceIn(0, 100),
+            lastInteractionTimestamp = now,
             activeBuffType = if (food.buffType != BuffType.NONE) food.buffType.code else pet.activeBuffType,
             activeBuffLabel = if (food.buffType != BuffType.NONE) "${food.emoji} ${food.buffType.badgeText}" else pet.activeBuffLabel,
             activeBuffExpiresAt = if (food.buffType != BuffType.NONE) now + food.buffDurationSec * 1000L else pet.activeBuffExpiresAt
@@ -245,7 +261,10 @@ class OvoPetRepository(private val dao: OvoPetDao) {
             )
         }
         val (finalPet, _) = applyXpAndEvolution(
-            updatedPet,
+            updatedPet.copy(
+                mood = (updatedPet.mood + 10).coerceIn(0, 100),
+                lastInteractionTimestamp = System.currentTimeMillis()
+            ),
             addedXp = if (!isUnlocked) 15 else 2,
             addedCarePoints = if (!isUnlocked) 3 else 1
         )
@@ -271,6 +290,8 @@ class OvoPetRepository(private val dao: OvoPetDao) {
             happiness = (pet.happiness + 15).coerceIn(0, 100),
             energy = (pet.energy - energyCost).coerceIn(0, 100),
             hunger = (pet.hunger - 4).coerceIn(0, 100),
+            mood = (pet.mood + 22).coerceIn(0, 100),
+            lastInteractionTimestamp = now,
             totalMiniGamesPlayed = pet.totalMiniGamesPlayed + 1
         )
 

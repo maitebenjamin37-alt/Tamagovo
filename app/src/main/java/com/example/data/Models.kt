@@ -83,11 +83,37 @@ enum class EvolutionStage(
     }
 }
 
+enum class PetMood(
+    val label: String,
+    val emoji: String,
+    val dialogue: String,
+    val animationSpeedFactor: Float,
+    val colorAccentHex: Long
+) {
+    ECSTATIC("Radiante", "🥰", "Estou radiante de tanta alegria com você! ✨", 1.35f, 0xFFFF4081L),
+    HAPPY("Contente", "😄", "Que bom brincar com você! Estou muito feliz!", 1.0f, 0xFF4CAF50L),
+    NEUTRAL("Entediado", "🥱", "Que tédio... vamos nos mexer ou jogar um minigame?", 0.85f, 0xFFFFA000L),
+    SAD("Carente", "🥺", "Você me deixou sozinho muito tempo... sinto sua falta!", 0.65f, 0xFF29B6F6L),
+    GRUMPY("Amuado", "😠", "Humpf! Fiquei sozinho demais, preciso de carinho!", 0.95f, 0xFFE53935L);
+
+    companion object {
+        fun fromValue(value: Int): PetMood {
+            return when {
+                value >= 80 -> ECSTATIC
+                value >= 60 -> HAPPY
+                value >= 40 -> NEUTRAL
+                value >= 20 -> SAD
+                else -> GRUMPY
+            }
+        }
+    }
+}
+
 @Entity(tableName = "pet_state")
 data class PetStateEntity(
     @PrimaryKey val id: Int = 1,
     val name: String = "Pouzinho",
-    val coins: Int = 400,
+    val coins: Int = 0,
     val level: Int = 1,
     val xp: Int = 0,
     val carePoints: Int = 0,
@@ -98,6 +124,8 @@ data class PetStateEntity(
     val cleanliness: Int = 80,
     val happiness: Int = 82,
     val health: Int = 90,
+    val mood: Int = 80,
+    val lastInteractionTimestamp: Long = System.currentTimeMillis(),
     val isSleeping: Boolean = false,
     val equippedHatId: String? = "hat_cap",
     val equippedGlassesId: String? = null,
@@ -118,6 +146,9 @@ data class PetStateEntity(
             }
             return EvolutionStage.fromOrdinal(highestEvolutionOrdinal)
         }
+
+    val currentMood: PetMood
+        get() = PetMood.fromValue(mood)
 }
 
 @Entity(tableName = "food_inventory")

@@ -101,12 +101,12 @@ fun WardrobeAccessoriesScreen(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = "🎩 Provador do Pou",
+                            text = "🎩 Provador do Tamagovo",
                             style = MaterialTheme.typography.titleLarge,
                             color = Color.White
                         )
                         Text(
-                            text = "Personalize seu Pou com chapéus, óculos, camisas, sapatos e cores!",
+                            text = "Personalize seu Tamagovo com chapéus, óculos, camisas, sapatos e cores!",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.88f)
                         )

@@ -1,6 +1,6 @@
 {
-  "name": "OvoPet",
-  "description": "Jogo de bichinho virtual estilo Pou onde você cuida do seu ovinho, alimenta com várias comidas, personaliza com acessórios e joga minigames.",
+  "name": "Tamagovo",
+  "description": "Cuide do seu Tamagovo virtual, alimente com comidas deliciosas, personalize com dezenas de acessórios e divirta-se com 30 minigames originais!",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

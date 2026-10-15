@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.testTag
 import com.example.data.AccessoryCatalogItem
 import com.example.data.CatalogData
 import com.example.data.EvolutionStage
+import com.example.data.PetMood
 import com.example.data.PetStateEntity
 import kotlinx.coroutines.delay
 import kotlin.math.cos
@@ -53,25 +54,41 @@ fun PouAvatarCanvas(
     modifier: Modifier = Modifier
 ) {
     val stage = stageOverride ?: petState.activeEvolutionStage
+    val currentMood = petState.currentMood
+
+    // Dynamic animation speed affected by Tamagovo mood:
+    // ECSTATIC = rapid bouncy bobs (1.35x), SAD = sluggish slow breathing (0.65x), etc.
+    val speedFactor = currentMood.animationSpeedFactor
+    val breatheDuration = (1450f / speedFactor).toInt().coerceIn(700, 2400)
+    val floatDuration = (2100f / speedFactor).toInt().coerceIn(1000, 3400)
 
     val infiniteTransition = rememberInfiniteTransition(label = "pou_idle")
     val breatheScale by infiniteTransition.animateFloat(
-        initialValue = 0.97f,
-        targetValue = 1.03f,
+        initialValue = if (currentMood == PetMood.SAD) 0.95f else 0.97f,
+        targetValue = if (currentMood == PetMood.ECSTATIC) 1.05f else 1.03f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
+            animation = tween(breatheDuration, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "breathe"
     )
     val floatOffset by infiniteTransition.animateFloat(
-        initialValue = -6f,
-        targetValue = 6f,
+        initialValue = if (currentMood == PetMood.SAD) 2f else -6f,
+        targetValue = if (currentMood == PetMood.ECSTATIC) -10f else 6f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2100, easing = FastOutSlowInEasing),
+            animation = tween(floatDuration, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "float"
+    )
+    val moodEmoteBob by infiniteTransition.animateFloat(
+        initialValue = -5f,
+        targetValue = 5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween((1100f / speedFactor).toInt(), easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "mood_bob"
     )
     val orbitAngle by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -350,25 +367,36 @@ fun PouAvatarCanvas(
                     size = Size(baseRadius * 0.24f, baseRadius * 0.14f)
                 )
 
-                // Eyes
+                // Eyes with dynamic Mood expression
                 drawPouEyes(
                     cx = cx,
                     cy = cy,
                     r = baseRadius,
                     isSleeping = petState.isSleeping,
                     isBlinking = isBlinking,
-                    isSad = petState.happiness < 35 || petState.hunger < 25
+                    mood = currentMood,
+                    isSadLegacy = petState.happiness < 35 || petState.hunger < 25
                 )
 
-                // Mouth
+                // Mouth with dynamic Mood expression
                 drawPouMouth(
                     cx = cx,
                     cy = cy,
                     r = baseRadius,
                     isEating = isEating,
                     isSleeping = petState.isSleeping,
+                    mood = currentMood,
                     happiness = petState.happiness,
                     hunger = petState.hunger
+                )
+
+                // Floating Mood Emote Indicator
+                drawMoodExpressions(
+                    cx = cx,
+                    cy = cy,
+                    r = baseRadius,
+                    mood = currentMood,
+                    bobOffset = moodEmoteBob
                 )
 
                 // Equipped Glasses
@@ -596,7 +624,8 @@ private fun DrawScope.drawPouEyes(
     r: Float,
     isSleeping: Boolean,
     isBlinking: Boolean,
-    isSad: Boolean
+    mood: PetMood,
+    isSadLegacy: Boolean
 ) {
     val eyeY = cy - r * 0.24f
     val leftX = cx - r * 0.26f
@@ -619,6 +648,19 @@ private fun DrawScope.drawPouEyes(
             strokeWidth = 7f,
             cap = StrokeCap.Round
         )
+    } else if (mood == PetMood.ECSTATIC) {
+        // Joyous squinting curved eye arcs (^ ^)
+        val arcW = eyeW * 0.95f
+        val leftArc = Path().apply {
+            moveTo(leftX - arcW / 2, eyeY + eyeH * 0.08f)
+            quadraticTo(leftX, eyeY - eyeH * 0.38f, leftX + arcW / 2, eyeY + eyeH * 0.08f)
+        }
+        val rightArc = Path().apply {
+            moveTo(rightX - arcW / 2, eyeY + eyeH * 0.08f)
+            quadraticTo(rightX, eyeY - eyeH * 0.38f, rightX + arcW / 2, eyeY + eyeH * 0.08f)
+        }
+        drawPath(leftArc, color = Color(0xFF2C221E), style = Stroke(width = 7.5f, cap = StrokeCap.Round))
+        drawPath(rightArc, color = Color(0xFF2C221E), style = Stroke(width = 7.5f, cap = StrokeCap.Round))
     } else {
         drawOval(
             color = Color.White,
@@ -643,8 +685,12 @@ private fun DrawScope.drawPouEyes(
             style = Stroke(width = 4f)
         )
 
-        val pupilR = eyeW * 0.30f
-        val pupilOffsetY = if (isSad) eyeH * 0.08f else 0f
+        val isSad = mood == PetMood.SAD || isSadLegacy
+        val isGrumpy = mood == PetMood.GRUMPY
+        val isNeutral = mood == PetMood.NEUTRAL
+
+        val pupilR = if (isGrumpy) eyeW * 0.25f else eyeW * 0.30f
+        val pupilOffsetY = if (isSad) eyeH * 0.10f else if (isNeutral) eyeH * 0.04f else 0f
         drawCircle(
             color = Color(0xFF1E1916),
             radius = pupilR,
@@ -665,6 +711,68 @@ private fun DrawScope.drawPouEyes(
             radius = pupilR * 0.38f,
             center = Offset(rightX - pupilR * 0.35f, eyeY - pupilR * 0.35f)
         )
+
+        // Eyebrows / Eyelids based on Mood
+        if (isGrumpy) {
+            // Angry furrowed eyebrows slanted inwards (/  \)
+            drawLine(
+                color = Color(0xFF2C221E),
+                start = Offset(leftX - eyeW * 0.60f, eyeY - eyeH * 0.65f),
+                end = Offset(leftX + eyeW * 0.50f, eyeY - eyeH * 0.38f),
+                strokeWidth = 6.5f,
+                cap = StrokeCap.Round
+            )
+            drawLine(
+                color = Color(0xFF2C221E),
+                start = Offset(rightX - eyeW * 0.50f, eyeY - eyeH * 0.38f),
+                end = Offset(rightX + eyeW * 0.60f, eyeY - eyeH * 0.65f),
+                strokeWidth = 6.5f,
+                cap = StrokeCap.Round
+            )
+        } else if (isSad) {
+            // Pleading sad eyebrows slanted upwards inwards (\  /)
+            drawLine(
+                color = Color(0xFF2C221E),
+                start = Offset(leftX - eyeW * 0.50f, eyeY - eyeH * 0.40f),
+                end = Offset(leftX + eyeW * 0.55f, eyeY - eyeH * 0.68f),
+                strokeWidth = 5.5f,
+                cap = StrokeCap.Round
+            )
+            drawLine(
+                color = Color(0xFF2C221E),
+                start = Offset(rightX - eyeW * 0.55f, eyeY - eyeH * 0.68f),
+                end = Offset(rightX + eyeW * 0.50f, eyeY - eyeH * 0.40f),
+                strokeWidth = 5.5f,
+                cap = StrokeCap.Round
+            )
+            // Glistening blue tear pooling in the right eye
+            drawCircle(
+                color = Color(0xFF29B6F6),
+                radius = eyeW * 0.16f,
+                center = Offset(rightX + eyeW * 0.42f, eyeY + eyeH * 0.42f)
+            )
+            drawCircle(
+                color = Color.White,
+                radius = eyeW * 0.06f,
+                center = Offset(rightX + eyeW * 0.38f, eyeY + eyeH * 0.38f)
+            )
+        } else if (isNeutral) {
+            // Sleepy/bored droopy straight upper eyelid line
+            drawLine(
+                color = Color(0xFF2C221E),
+                start = Offset(leftX - eyeW * 0.55f, eyeY - eyeH * 0.10f),
+                end = Offset(leftX + eyeW * 0.55f, eyeY - eyeH * 0.10f),
+                strokeWidth = 5f,
+                cap = StrokeCap.Round
+            )
+            drawLine(
+                color = Color(0xFF2C221E),
+                start = Offset(rightX - eyeW * 0.55f, eyeY - eyeH * 0.10f),
+                end = Offset(rightX + eyeW * 0.55f, eyeY - eyeH * 0.10f),
+                strokeWidth = 5f,
+                cap = StrokeCap.Round
+            )
+        }
     }
 }
 
@@ -674,6 +782,7 @@ private fun DrawScope.drawPouMouth(
     r: Float,
     isEating: Boolean,
     isSleeping: Boolean,
+    mood: PetMood,
     happiness: Int,
     hunger: Int
 ) {
@@ -695,18 +804,123 @@ private fun DrawScope.drawPouMouth(
             radius = r * 0.06f,
             center = Offset(cx, mouthY + r * 0.04f)
         )
-    } else if (happiness < 35 || hunger < 25) {
+    } else if (mood == PetMood.ECSTATIC) {
+        // Delighted laughing open mouth with cute tongue
+        val mouthW = r * 0.36f
+        val mouthH = r * 0.24f
+        val openMouth = Path().apply {
+            moveTo(cx - mouthW / 2, mouthY - mouthH * 0.2f)
+            quadraticTo(cx, mouthY + mouthH * 1.35f, cx + mouthW / 2, mouthY - mouthH * 0.2f)
+            close()
+        }
+        drawPath(openMouth, color = Color(0xFF880E4F))
+        drawOval(
+            color = Color(0xFFFF80AB),
+            topLeft = Offset(cx - mouthW * 0.26f, mouthY + mouthH * 0.28f),
+            size = Size(mouthW * 0.52f, mouthH * 0.60f)
+        )
+        drawPath(openMouth, color = Color(0xFF2C221E), style = Stroke(width = 5.5f))
+    } else if (mood == PetMood.GRUMPY) {
+        // Irritated crooked zig-zag pout
+        val poutPath = Path().apply {
+            moveTo(cx - r * 0.22f, mouthY + r * 0.08f)
+            lineTo(cx - r * 0.08f, mouthY - r * 0.02f)
+            lineTo(cx + r * 0.06f, mouthY + r * 0.06f)
+            lineTo(cx + r * 0.22f, mouthY - r * 0.02f)
+        }
+        drawPath(poutPath, color = Color(0xFF2C221E), style = Stroke(width = 6.5f, cap = StrokeCap.Round))
+    } else if (mood == PetMood.SAD || happiness < 35 || hunger < 25) {
+        // Trembling sad frown
         val frownPath = Path().apply {
-            moveTo(cx - r * 0.22f, mouthY + r * 0.12f)
-            quadraticTo(cx, mouthY - r * 0.06f, cx + r * 0.22f, mouthY + r * 0.12f)
+            moveTo(cx - r * 0.24f, mouthY + r * 0.14f)
+            quadraticTo(cx, mouthY - r * 0.05f, cx + r * 0.24f, mouthY + r * 0.14f)
         }
         drawPath(frownPath, color = Color(0xFF2C221E), style = Stroke(width = 7f, cap = StrokeCap.Round))
+    } else if (mood == PetMood.NEUTRAL) {
+        // Flat straight neutral line
+        drawLine(
+            color = Color(0xFF2C221E),
+            start = Offset(cx - r * 0.18f, mouthY + r * 0.06f),
+            end = Offset(cx + r * 0.18f, mouthY + r * 0.06f),
+            strokeWidth = 6f,
+            cap = StrokeCap.Round
+        )
     } else {
+        // Warm cheerful smile for HAPPY
         val smilePath = Path().apply {
             moveTo(cx - r * 0.28f, mouthY - r * 0.02f)
             quadraticTo(cx, mouthY + r * 0.24f, cx + r * 0.28f, mouthY - r * 0.02f)
         }
         drawPath(smilePath, color = Color(0xFF2C221E), style = Stroke(width = 7f, cap = StrokeCap.Round))
+    }
+}
+
+private fun DrawScope.drawMoodExpressions(
+    cx: Float,
+    cy: Float,
+    r: Float,
+    mood: PetMood,
+    bobOffset: Float
+) {
+    val emoteY = cy - r * 0.88f + bobOffset
+    when (mood) {
+        PetMood.ECSTATIC -> {
+            // Floating pink love heart beside head
+            val hx = cx + r * 0.65f
+            val hy = emoteY - r * 0.15f
+            val hr = r * 0.11f
+            val heartPath = Path().apply {
+                moveTo(hx, hy + hr * 0.7f)
+                cubicTo(hx - hr * 1.2f, hy - hr * 0.4f, hx - hr * 0.6f, hy - hr * 1.2f, hx, hy - hr * 0.4f)
+                cubicTo(hx + hr * 0.6f, hy - hr * 1.2f, hx + hr * 1.2f, hy - hr * 0.4f, hx, hy + hr * 0.7f)
+                close()
+            }
+            drawPath(heartPath, color = Color(0xFFFF4081))
+            drawPath(heartPath, color = Color(0xFFC2185B), style = Stroke(width = 2.5f))
+        }
+        PetMood.GRUMPY -> {
+            // Red cartoon anger symbol (💢) near upper temple
+            val ax = cx + r * 0.58f
+            val ay = emoteY - r * 0.05f
+            val asize = r * 0.16f
+            val veinColor = Color(0xFFD32F2F)
+            drawLine(veinColor, Offset(ax - asize / 2, ay), Offset(ax + asize / 2, ay), strokeWidth = 5f, cap = StrokeCap.Round)
+            drawLine(veinColor, Offset(ax, ay - asize / 2), Offset(ax, ay + asize / 2), strokeWidth = 5f, cap = StrokeCap.Round)
+            drawLine(veinColor, Offset(ax - asize / 3, ay - asize / 3), Offset(ax + asize / 3, ay + asize / 3), strokeWidth = 3.5f, cap = StrokeCap.Round)
+            drawLine(veinColor, Offset(ax + asize / 3, ay - asize / 3), Offset(ax - asize / 3, ay + asize / 3), strokeWidth = 3.5f, cap = StrokeCap.Round)
+        }
+        PetMood.SAD -> {
+            // Teardrop running down below right cheek
+            val tx = cx + r * 0.52f
+            val ty = cy + r * 0.15f + bobOffset * 0.6f
+            val tearPath = Path().apply {
+                moveTo(tx, ty - r * 0.10f)
+                quadraticTo(tx + r * 0.08f, ty + r * 0.05f, tx, ty + r * 0.09f)
+                quadraticTo(tx - r * 0.08f, ty + r * 0.05f, tx, ty - r * 0.10f)
+                close()
+            }
+            drawPath(tearPath, color = Color(0xFF40C4FF))
+            drawPath(tearPath, color = Color(0xFF0288D1), style = Stroke(width = 2.5f))
+        }
+        PetMood.NEUTRAL -> {
+            // Tiny sweat droplet beside temple
+            val sx = cx + r * 0.55f
+            val sy = emoteY + r * 0.05f
+            val sweatPath = Path().apply {
+                moveTo(sx, sy - r * 0.07f)
+                quadraticTo(sx + r * 0.06f, sy + r * 0.04f, sx, sy + r * 0.07f)
+                quadraticTo(sx - r * 0.06f, sy + r * 0.04f, sx, sy - r * 0.07f)
+                close()
+            }
+            drawPath(sweatPath, color = Color(0xFF81D4FA))
+            drawPath(sweatPath, color = Color(0xFF0288D1), style = Stroke(width = 2f))
+        }
+        PetMood.HAPPY -> {
+            // Subtle sunny sparkle
+            val spx = cx + r * 0.60f
+            val spy = emoteY
+            drawCircle(Color(0xFFFFD54F), radius = r * 0.05f, center = Offset(spx, spy))
+        }
     }
 }
 

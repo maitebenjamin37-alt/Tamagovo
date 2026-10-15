@@ -91,6 +91,7 @@ fun HomeRoomScreen(
     onQuickFeed: (FoodCatalogItem) -> Unit,
     onRenamePet: (String) -> Unit,
     onNavigateTab: (MainTab) -> Unit,
+    onSimulateTimeAlone: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val pet = uiState.pet
@@ -364,6 +365,51 @@ fun HomeRoomScreen(
                     NeedMeterItem("💚 Saúde", pet.health, HealthGreen, Modifier.weight(1f))
                 }
 
+                // Tamagovo Humor / Mood Indicator
+                val mood = pet.currentMood
+                val moodColor = Color(mood.colorAccentHex)
+                Surface(
+                    color = moodColor.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, moodColor.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+                        .testTag("tamagovo_mood_bar")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "🎭 Humor: ${mood.emoji} ${mood.label}",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = moodColor
+                            )
+                            Text(
+                                text = "${pet.mood}%",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = moodColor
+                            )
+                        }
+                        LinearProgressIndicator(
+                            progress = { (pet.mood / 100f).coerceIn(0f, 1f) },
+                            color = moodColor,
+                            trackColor = moodColor.copy(alpha = 0.2f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(CircleShape)
+                        )
+                    }
+                }
+
                 // Active Temporary Food Buff Banner
                 AnimatedVisibility(visible = uiState.remainingBuffSeconds > 0 && !pet.activeBuffLabel.isNullOrBlank()) {
                     Surface(
@@ -436,7 +482,7 @@ fun HomeRoomScreen(
                     pet.isSleeping -> "Zzz... Sonhando com moedas... 😴"
                     pet.hunger < 35 -> "Estou com fominha! Me dê comida 🍕"
                     pet.cleanliness < 45 -> "Preciso de um banho de espuma! 🛁"
-                    else -> "${currentStage.badgeEmoji} Forma: ${currentStage.title} (Toque em mim!)"
+                    else -> "${pet.currentMood.emoji} ${pet.currentMood.dialogue}"
                 }
 
                 Surface(
@@ -591,6 +637,43 @@ fun HomeRoomScreen(
                 testTag = "btn_care_heal",
                 modifier = Modifier.weight(1f)
             )
+        }
+
+        // Tamagovo Humor & Attention Info Row
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("tamagovo_mood_info_surface")
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "💡 O humor do Ovo muda com sua atenção!",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Jogar minigames (+22), carinho (+12) e comidas (+15) deixam ele radiante 🥰. Ficar sozinho o deixa carente 🥺 ou amuado 😠.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                OutlinedButton(
+                    onClick = onSimulateTimeAlone,
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                    modifier = Modifier.testTag("btn_simulate_alone")
+                ) {
+                    Text("⏳ Ficar Só", style = MaterialTheme.typography.labelSmall)
+                }
+            }
         }
 
         // Quick-Feed Bar from Inventory

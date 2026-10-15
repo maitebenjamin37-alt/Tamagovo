@@ -113,19 +113,31 @@ class OvoPetViewModel(application: Application) : AndroidViewModel(application) 
                 tickCounter++
                 if (tickCounter % 25 == 0) {
                     repository.updatePetState { pet ->
-                        val hasSuperHealth = pet.activeBuffExpiresAt > System.currentTimeMillis() &&
+                        val now = System.currentTimeMillis()
+                        val hasSuperHealth = pet.activeBuffExpiresAt > now &&
                             pet.activeBuffType == BuffType.SUPER_HEALTH.code
+                        val secondsSinceInteraction = ((now - pet.lastInteractionTimestamp) / 1000L).toInt()
+                        val moodDecay = if (secondsSinceInteraction > 30) {
+                            var drop = 1
+                            if (pet.hunger < 35) drop += 1
+                            if (pet.cleanliness < 35) drop += 1
+                            drop
+                        } else 0
+                        val updatedMood = (pet.mood - moodDecay).coerceIn(5, 100)
+
                         if (pet.isSleeping) {
                             pet.copy(
                                 energy = (pet.energy + 6).coerceIn(0, 100),
                                 hunger = (pet.hunger - 1).coerceIn(0, 100),
-                                health = if (hasSuperHealth) (pet.health + 3).coerceIn(0, 100) else pet.health
+                                health = if (hasSuperHealth) (pet.health + 3).coerceIn(0, 100) else pet.health,
+                                mood = updatedMood
                             )
                         } else {
                             pet.copy(
                                 hunger = (pet.hunger - 1).coerceIn(0, 100),
                                 cleanliness = (pet.cleanliness - 1).coerceIn(0, 100),
-                                health = if (hasSuperHealth) (pet.health + 2).coerceIn(0, 100) else pet.health
+                                health = if (hasSuperHealth) (pet.health + 2).coerceIn(0, 100) else pet.health,
+                                mood = updatedMood
                             )
                         }
                     }
@@ -258,6 +270,20 @@ class OvoPetViewModel(application: Application) : AndroidViewModel(application) 
             } else {
                 showTransientBanner("🌟 Treino de Evolução concluído! (+6 Cuidado, +35 XP, +10 🪙)")
             }
+        }
+    }
+
+    fun simulateTimeAlone() {
+        viewModelScope.launch {
+            repository.updatePetState { pet ->
+                val droppedMood = (pet.mood - 25).coerceIn(5, 100)
+                pet.copy(
+                    mood = droppedMood,
+                    lastInteractionTimestamp = System.currentTimeMillis() - 180_000L
+                )
+            }
+            val current = uiState.value.pet.currentMood
+            showTransientBanner("⏳ Pou ficou sozinho por um tempo... Humor caiu para ${current.emoji} ${current.label}!")
         }
     }
 

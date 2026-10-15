@@ -89,7 +89,7 @@ fun KitchenFoodScreen(
             Box(modifier = Modifier.fillMaxSize()) {
                 Image(
                     painter = painterResource(id = R.drawable.img_room_kitchen_1791409078935),
-                    contentDescription = "Cozinha do Pou",
+                    contentDescription = "Cozinha do Tamagovo",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )

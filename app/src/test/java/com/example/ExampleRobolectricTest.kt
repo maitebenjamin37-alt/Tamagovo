@@ -40,5 +40,19 @@ class ExampleRobolectricTest {
         assertEquals(com.example.data.EvolutionStage.TEEN, com.example.data.EvolutionStage.fromLevelAndCare(4, 15))
         assertEquals(com.example.data.EvolutionStage.ADULT, com.example.data.EvolutionStage.fromLevelAndCare(6, 50))
         assertEquals(com.example.data.EvolutionStage.MYTHIC, com.example.data.EvolutionStage.fromLevelAndCare(10, 80))
+
+        // Verify game starts with 0 coins
+        assertEquals(0, com.example.data.PetStateEntity().coins)
+
+        // Verify PetMood mapping and fluctuations
+        assertEquals(com.example.data.PetMood.ECSTATIC, com.example.data.PetMood.fromValue(85))
+        assertEquals(com.example.data.PetMood.HAPPY, com.example.data.PetMood.fromValue(65))
+        assertEquals(com.example.data.PetMood.NEUTRAL, com.example.data.PetMood.fromValue(45))
+        assertEquals(com.example.data.PetMood.SAD, com.example.data.PetMood.fromValue(25))
+        assertEquals(com.example.data.PetMood.GRUMPY, com.example.data.PetMood.fromValue(10))
+
+        val initialPet = com.example.data.PetStateEntity()
+        assertEquals(80, initialPet.mood)
+        assertEquals(com.example.data.PetMood.ECSTATIC, initialPet.currentMood)
     }
 }
